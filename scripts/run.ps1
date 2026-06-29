@@ -1,15 +1,13 @@
 $ErrorActionPreference = "Stop"
+Add-Type -AssemblyName WindowsBase
 function Write-LauncherStatus {
     param([Parameter(Mandatory = $true)][string]$Message)
-    Write-Host $Message -ForegroundColor Cyan
+    Write-Host "[Launcher] $Message" -ForegroundColor Cyan
 }
 function Write-LauncherError {
     param([Parameter(Mandatory = $true)][string]$Message, [switch]$Exit)
-    Write-Host "[ERROR] $Message" -ForegroundColor Red
-    if ($Exit) {
-        Read-Host "Press Enter to exit..."
-        exit 1
-    }
+    [System.Windows.MessageBox]::Show($Message, "Launcher Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error) | Out-Null
+    if ($Exit) { exit 1 }
 }
 function Get-ScriptRoot {
     if ($PSScriptRoot) { return $PSScriptRoot }
@@ -257,7 +255,5 @@ if (Test-Path -LiteralPath $modsConfigPath) {
 }
 # boot up game
 Write-LauncherStatus "Booting up Minecraft as user '$pmcUser'..."
-& $exePath @("start", "neoforge:1.21.1", "--mc-dir", @(Join-Path $rootDir "game"), "--username", $pmcUser, "--disable-chat")
-# forward exit codes
-$exitCode = $LASTEXITCODE
-if ($null -ne $exitCode) { exit $exitCode }
+& $exePath @("start", "neoforge:1.21.1", "--mc-dir", "$(Join-Path $rootDir 'game')", "--username", "$pmcUser", "--disable-chat")
+exit $LASTEXITCODE

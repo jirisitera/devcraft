@@ -88,6 +88,7 @@ try {
         InputFile   = $scriptPath
         OutputFile  = $outputPath
         ErrorAction = "Stop"
+        noConsole   = $true
     }
     if ($iconForBuild) { $ps2exeArgs.IconFile = $iconForBuild }
     ps2exe @ps2exeArgs
