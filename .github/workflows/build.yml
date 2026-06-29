@@ -1,0 +1,36 @@
+name: Build & Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (e.g. v1.0.0)"
+        required: true
+        type: string
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install ps2exe
+        shell: powershell
+        run: |
+          Install-Module ps2exe -Scope CurrentUser -Force
+      - name: Build Executable
+        shell: powershell
+        run: |
+          .\scripts\build.ps1
+      - name: Package Release
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Path release_pkg
+          Copy-Item -Path client\devcraft.exe -Destination release_pkg\
+          Copy-Item -Path game -Destination release_pkg\ -Recurse
+          Compress-Archive -Path release_pkg\* -DestinationPath devcraft-windows.zip
+      - name: Create Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.version }}
+          name: Devcraft ${{ inputs.version }}
+          files: devcraft-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
