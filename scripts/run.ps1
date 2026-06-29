@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName WindowsBase
 function Write-LauncherStatus {
     param([Parameter(Mandatory = $true)][string]$Message)
-    Write-Host "[Launcher] $Message" -ForegroundColor Cyan
+    if ($Host.Name -notmatch "PS2EXE") { Write-Host "[Launcher] $Message" -ForegroundColor Cyan }
 }
 function Write-LauncherError {
     param([Parameter(Mandatory = $true)][string]$Message, [switch]$Exit)
@@ -255,5 +255,6 @@ if (Test-Path -LiteralPath $modsConfigPath) {
 }
 # boot up game
 Write-LauncherStatus "Booting up Minecraft as user '$pmcUser'..."
-& $exePath @("start", "neoforge:1.21.1", "--mc-dir", "$(Join-Path $rootDir 'game')", "--username", "$pmcUser", "--disable-chat")
-exit $LASTEXITCODE
+$pmcArgs = @("start", "neoforge:1.21.1", "--mc-dir", "$(Join-Path $rootDir 'game')", "--username", "$pmcUser", "--disable-chat")
+$process = Start-Process -FilePath $exePath -ArgumentList $pmcArgs -NoNewWindow -Wait -PassThru
+exit $process.ExitCode
