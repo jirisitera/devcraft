@@ -1,0 +1,13 @@
+# generic large file extensions
+*.dat_old
+*.exe
+*.jar
+*.zip
+# temporary folders
+.extracted/
+# minecraft data folders
+config/
+defaultconfigs/
+downloads/
+saves/
+logs/
