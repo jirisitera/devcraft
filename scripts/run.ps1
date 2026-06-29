@@ -257,5 +257,11 @@ if (Test-Path -LiteralPath $modsConfigPath) {
 # boot up game
 Write-LauncherStatus "Booting up Minecraft as user '$pmcUser'..."
 $pmcArgs = @("start", "neoforge:1.21.1", "--mc-dir", "$(Join-Path $rootDir 'game')", "--username", "$pmcUser", "--disable-chat")
-$process = Start-Process -FilePath $exePath -ArgumentList $pmcArgs -NoNewWindow -Wait -PassThru
+# run in hidden mode if launching from and executable
+if ($Host.Name -match "PSRunspace") {
+    $process = Start-Process -FilePath $exePath -ArgumentList $pmcArgs -WindowStyle Hidden -Wait -PassThru
+}
+else {
+    $process = Start-Process -FilePath $exePath -ArgumentList $pmcArgs -NoNewWindow -Wait -PassThru
+}
 exit $process.ExitCode
