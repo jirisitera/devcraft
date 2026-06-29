@@ -19,7 +19,7 @@ irm https://raw.githubusercontent.com/jirisitera/devcraft/main/scripts/install.p
 Or you can use a shorter command using my domain link:
 
 ```powershell
-irm https://japicraft.com/mc | iex
+irm https://dev.japicraft.com | iex
 ```
 
 ## Usage
