@@ -1,8 +1,9 @@
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName WindowsBase
+if ($Host.Name -match "PSRunspace") { $ProgressPreference = "SilentlyContinue" }
 function Write-LauncherStatus {
     param([Parameter(Mandatory = $true)][string]$Message)
-    if ($Host.Name -notmatch "PS2EXE") { Write-Host "[Launcher] $Message" -ForegroundColor Cyan }
+    if ($Host.Name -notmatch "PSRunspace") { Write-Host "[Launcher] $Message" -ForegroundColor Cyan }
 }
 function Write-LauncherError {
     param([Parameter(Mandatory = $true)][string]$Message, [switch]$Exit)
