@@ -50,7 +50,36 @@ if (-not (Test-Path -LiteralPath $exePath)) {
         if (Test-Path -LiteralPath $extractDir) { Remove-Item -LiteralPath $extractDir -Recurse -Force }
         New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
         Write-LauncherStatus "Extracting archive..."
-        Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+        Add-Type -AssemblyName System.IO.Compression
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+        $extractRoot = [System.IO.Path]::GetFullPath($extractDir + [System.IO.Path]::DirectorySeparatorChar)
+        $zipArchive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+        try {
+            foreach ($entry in $zipArchive.Entries) {
+                if ([string]::IsNullOrWhiteSpace($entry.FullName)) { continue }
+
+                $destinationPath = [System.IO.Path]::GetFullPath((Join-Path $extractDir $entry.FullName))
+                if (-not $destinationPath.StartsWith($extractRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    throw "Archive entry has invalid path: $($entry.FullName)"
+                }
+
+                if ($entry.Name -eq "") {
+                    New-Item -ItemType Directory -Path $destinationPath -Force | Out-Null
+                    continue
+                }
+
+                $destinationDir = Split-Path -Parent $destinationPath
+                if (-not (Test-Path -LiteralPath $destinationDir)) {
+                    New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null
+                }
+
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destinationPath, $true)
+            }
+        }
+        finally {
+            if ($null -ne $zipArchive) { $zipArchive.Dispose() }
+        }
         if (-not (Test-Path -LiteralPath $exePath)) { Write-LauncherError -Message "portablemc.exe was not found after extraction." -Exit }
         Write-LauncherStatus "Download successful!"
     }
