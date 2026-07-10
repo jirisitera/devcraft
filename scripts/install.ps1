@@ -1,8 +1,7 @@
 $ErrorActionPreference = "Stop"
 Write-Host "=================================" -ForegroundColor Cyan
-Write-Host "   Devcraft Installer  " -ForegroundColor Cyan
+Write-Host "        Devcraft Installer" -ForegroundColor Cyan
 Write-Host "=================================" -ForegroundColor Cyan
-Write-Host ""
 function New-Shortcut {
     param ([Parameter(Mandatory = $true)][string]$LinkPath, [Parameter(Mandatory = $true)][string]$TargetPath, [Parameter(Mandatory = $true)][string]$WorkingDirectory)
     $WshShell = New-Object -ComObject WScript.Shell
@@ -16,7 +15,7 @@ $defaultInstallDir = "$env:LOCALAPPDATA\Devcraft"
 $installDir = Read-Host "Enter installation directory [$defaultInstallDir]"
 if ([string]::IsNullOrWhiteSpace($installDir)) { $installDir = $defaultInstallDir }
 $installDir = [System.IO.Path]::GetFullPath($installDir)
-Write-Host "`nInstalling to: $installDir" -ForegroundColor Yellow
+Write-Host "Installing to: $installDir" -ForegroundColor Yellow
 if (-not (Test-Path -LiteralPath $installDir)) { New-Item -ItemType Directory -Path $installDir -Force | Out-Null }
 # fetch release info
 $repoOwner = "jirisitera"
@@ -53,7 +52,7 @@ try {
     New-Item -ItemType Directory -Path $tempExtractDir -Force | Out-Null
     Expand-Archive -Path $tempZipPath -DestinationPath $tempExtractDir -Force
     $backupDir = "$env:TEMP\devcraft_backup_$tempId"
-    $playerDataPaths = @("game\saves", "game\options.txt", "game\servers.dat", "game\resourcepacks", "game\schematics", "game\screenshots", "game\logs")
+    $playerDataPaths = @("game\saves", "game\options.txt", "game\resourcepacks", "game\screenshots", "game\logs")
     if (Test-Path -LiteralPath $installDir) {
         Write-Host "Backing up player data..."
         New-Item -ItemType Directory -Path $backupDir -Force | Out-Null

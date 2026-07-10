@@ -252,6 +252,23 @@ if ([string]::IsNullOrWhiteSpace($pmcUser)) {
 if ($pmcUser.Length -lt 3 -or $pmcUser.Length -gt 16 -or $pmcUser -notmatch "^[A-Za-z0-9_]+$") {
     Write-LauncherError -Message "Invalid username. Use 3 to 16 characters (letters, numbers, and underscores only)." -Exit
 }
+$githubRawBase = 'https://raw.githubusercontent.com/jirisitera/devcraft/main'
+$filesToFetch = @{
+    'game/servers.dat' = Join-Path $rootDir 'game\servers.dat'
+    'game/options.txt' = Join-Path $rootDir 'game\options.txt'
+    'game/mods.json' = Join-Path $rootDir 'game\mods.json'
+}
+foreach ($rel in $filesToFetch.Keys) {
+    $url = "$githubRawBase/$rel"
+    $dest = $filesToFetch[$rel]
+    try {
+        Write-LauncherStatus "Fetching $rel from $url"
+        Invoke-WebRequest -Uri $url -UseBasicParsing -OutFile $dest -ErrorAction Stop
+        Write-LauncherStatus "Updated $rel"
+    } catch {
+        Write-LauncherStatus "Could not update $rel: $($_.Exception.Message)"
+    }
+}
 # download required mods
 $modsConfigPath = Join-Path $rootDir "game\mods.json"
 if (Test-Path -LiteralPath $modsConfigPath) {
@@ -285,7 +302,7 @@ if (Test-Path -LiteralPath $modsConfigPath) {
 }
 # boot up game
 Write-LauncherStatus "Booting up Minecraft as user '$pmcUser'..."
-$pmcArgs = @("start", "neoforge:1.21.1", "--mc-dir", "$(Join-Path $rootDir 'game')", "--username", "$pmcUser", "--disable-chat")
+$pmcArgs = @("start", "neoforge:1.21.1", "--mc-dir", "$(Join-Path $rootDir 'game')", "--username", "$pmcUser")
 # run in hidden mode if launching from and executable
 if ($Host.Name -match "PSRunspace") {
     $process = Start-Process -FilePath $exePath -ArgumentList $pmcArgs -WindowStyle Hidden -Wait -PassThru
