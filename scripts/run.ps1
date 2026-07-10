@@ -266,7 +266,7 @@ foreach ($rel in $filesToFetch.Keys) {
         Invoke-WebRequest -Uri $url -UseBasicParsing -OutFile $dest -ErrorAction Stop
         Write-LauncherStatus "Updated $rel"
     } catch {
-        Write-LauncherStatus "Could not update $rel: $($_.Exception.Message)"
+        Write-LauncherStatus "Could not update ${rel}: $($_.Exception.Message)"
     }
 }
 # download required mods
