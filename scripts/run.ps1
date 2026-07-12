@@ -332,7 +332,7 @@ function Show-ModDownloadWindow {
                 </Border.Effect>
                 <Grid>
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="12,0,12,0">
-                        <TextBlock Text="Downloading required mods" FontSize="30" FontWeight="SemiBold" Foreground="#0F4C81" Margin="0,0,0,8"/>
+                        <TextBlock Text="Downloading Mods" FontSize="30" FontWeight="SemiBold" Foreground="#0F4C81" Margin="0,0,0,8"/>
                         <TextBlock x:Name="StatusText" Text="Preparing downloads..." FontSize="14" Foreground="#3F4A59" TextWrapping="Wrap" Margin="0,0,0,16"/>
                         <ProgressBar x:Name="DownloadProgress" Style="{StaticResource ProgressTrack}" Minimum="0" Maximum="100" Value="0" Margin="0,0,0,12"/>
                         <TextBlock x:Name="DetailText" Text="Please wait while the launcher downloads the selected mod files." FontSize="14" Foreground="#3F4A59" TextWrapping="Wrap"/>

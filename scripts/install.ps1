@@ -75,7 +75,7 @@ try {
     New-Item -ItemType Directory -Path $tempExtractDir -Force | Out-Null
     Expand-Archive -Path $tempZipPath -DestinationPath $tempExtractDir -Force
     $backupDir = "$env:TEMP\devcraft_backup_$tempId"
-    $playerDataPaths = @("game\saves", "game\options.txt", "game\resourcepacks", "game\screenshots", "game\logs")
+    $playerDataPaths = @("game\saves", "game\resourcepacks", "game\screenshots")
     if (Test-Path -LiteralPath $installDir) {
         Write-Host "Backing up player data..."
         New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
