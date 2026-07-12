@@ -21,8 +21,8 @@
             "required_serverside": "true"
         },
         {
-            "filename": "bellsandwhistles-0.4.7-1.21.1.jar",
-            "url": "https://cdn.modrinth.com/data/gJ5afkVv/versions/w0mifib8/bellsandwhistles-0.4.7-1.21.1.jar",
+            "filename": "ferritecore-7.0.3-neoforge.jar",
+            "url": "https://cdn.modrinth.com/data/uXXizFIs/versions/x7kQWVju/ferritecore-7.0.3-neoforge.jar",
             "required_serverside": "true"
         },
         {
@@ -44,11 +44,6 @@
             "filename": "cloth-config-15.0.140-neoforge.jar",
             "url": "https://cdn.modrinth.com/data/9s6osm5g/versions/izKINKFg/cloth-config-15.0.140-neoforge.jar",
             "required_serverside": "false"
-        },
-        {
-            "filename": "ferritecore-7.0.3-neoforge.jar",
-            "url": "https://cdn.modrinth.com/data/uXXizFIs/versions/x7kQWVju/ferritecore-7.0.3-neoforge.jar",
-            "required_serverside": "true"
         },
         {
             "filename": "ImmediatelyFast-NeoForge-1.6.11+1.21.1.jar",

@@ -25,8 +25,12 @@ jobs:
       - name: Package Release
         shell: powershell
         run: |
+          $version = '${{ inputs.version }}'.TrimStart('v', 'V')
+          Set-Content -Path client\version.txt -Value $version -NoNewline
           New-Item -ItemType Directory -Path release_pkg
           Copy-Item -Path client\devcraft.exe -Destination release_pkg\
+          New-Item -ItemType Directory -Path release_pkg\client -Force | Out-Null
+          Copy-Item -Path client\version.txt -Destination release_pkg\client\version.txt
           Copy-Item -Path game -Destination release_pkg\ -Recurse
           Compress-Archive -Path release_pkg\* -DestinationPath devcraft-windows.zip
       - name: Create Release
