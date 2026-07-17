@@ -36,9 +36,13 @@ function Convert-PngToIco {
         # PNG payload
         $writer.Write($pngBytes)
         $writer.Flush()
+    } catch {
+        Write-Error "Failed to convert PNG to ICO: $_"
+    } finally {
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
     }
-    catch { Write-Error "Failed to convert PNG to ICO: $_" }
-    finally { if ($null -ne $stream) { $stream.Dispose() } }
 }
 # verify ps2exe is installed
 try { $null = Get-Command ps2exe -ErrorAction Stop }
@@ -48,8 +52,7 @@ catch {
     try {
         Install-Module ps2exe -Scope CurrentUser -Force -AllowClobber
         Write-Host "ps2exe installed successfully." -ForegroundColor Green
-    }
-    catch {
+    } catch {
         Write-Error "Failed to install ps2exe. Please install it manually: Install-Module ps2exe -Scope CurrentUser -Force"
         exit 1
     }
@@ -58,7 +61,9 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $scriptRoot
 $scriptPath = Join-Path $scriptRoot "run.ps1"
 $clientDir = Join-Path $projectRoot "client"
-if (-not (Test-Path -LiteralPath $clientDir)) { New-Item -ItemType Directory -Path $clientDir -Force | Out-Null }
+if (-not (Test-Path -LiteralPath $clientDir)) {
+    New-Item -ItemType Directory -Path $clientDir -Force | Out-Null
+}
 $outputPath = Join-Path $clientDir "devcraft.exe"
 $iconIcoPath = Join-Path $projectRoot "assets\icon.ico"
 $iconPngPath = Join-Path $projectRoot "assets\icon.png"
@@ -72,13 +77,13 @@ if (-not (Test-Path -LiteralPath $scriptPath)) {
 if (Test-Path -LiteralPath $iconIcoPath) {
     Write-Host "Using ICO icon from: $iconIcoPath" -ForegroundColor Cyan
     $iconForBuild = $iconIcoPath
-}
-elseif (Test-Path -LiteralPath $iconPngPath) {
+} elseif (Test-Path -LiteralPath $iconPngPath) {
     Write-Host "Converting PNG icon to ICO: $iconIcoPath" -ForegroundColor Cyan
     Convert-PngToIco -PngPath $iconPngPath -IcoPath $iconIcoPath
-    if (Test-Path -LiteralPath $iconIcoPath) { $iconForBuild = $iconIcoPath }
-}
-else {
+    if (Test-Path -LiteralPath $iconIcoPath) {
+        $iconForBuild = $iconIcoPath
+    }
+} else {
     Write-Host "No icon file found in assets (expected icon.ico or icon.png)." -ForegroundColor Yellow
     Write-Host "Proceeding without embedded EXE icon..." -ForegroundColor Yellow
 }
@@ -90,7 +95,9 @@ try {
         ErrorAction = "Stop"
         noConsole   = $true
     }
-    if ($iconForBuild) { $ps2exeArgs.IconFile = $iconForBuild }
+    if ($iconForBuild) {
+        $ps2exeArgs.IconFile = $iconForBuild
+    }
     ps2exe @ps2exeArgs
     if (Test-Path -LiteralPath $outputPath) {
         $fileSize = (Get-Item -LiteralPath $outputPath).Length / 1MB
@@ -98,8 +105,7 @@ try {
         Write-Host "Output: $outputPath" -ForegroundColor Cyan
         Write-Host "Size: $([math]::Round($fileSize, 2)) MB" -ForegroundColor Cyan
     }
-}
-catch {
+} catch {
     Write-Error "Error during compilation: $($_.Exception.Message)"
     exit 1
 }

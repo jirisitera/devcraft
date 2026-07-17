@@ -13,17 +13,39 @@ function New-Shortcut {
 # determine installation directory
 $defaultInstallDir = "$env:LOCALAPPDATA\Devcraft"
 $installDir = Read-Host "Enter installation directory [$defaultInstallDir]"
-if ([string]::IsNullOrWhiteSpace($installDir)) { $installDir = $defaultInstallDir }
+if ([string]::IsNullOrWhiteSpace($installDir)) {
+    $installDir = $defaultInstallDir
+}
 $installDir = [System.IO.Path]::GetFullPath($installDir)
 Write-Host "Installing to: $installDir" -ForegroundColor Yellow
+# check for existing installation
+$existingInstall = Test-Path -LiteralPath $installDir
+if ($existingInstall) {
+    $installedVersion = $null
+    $installedVersionPath = Join-Path $installDir "client\version.txt"
+    if (Test-Path -LiteralPath $installedVersionPath) {
+        $installedVersion = (Get-Content -LiteralPath $installedVersionPath -Raw).Trim()
+    }
+    if ($installedVersion) {
+        Write-Host "Existing installation detected. Installed version: $installedVersion" -ForegroundColor Yellow
+    } else {
+        Write-Host "Existing installation detected, but the installed version could not be determined." -ForegroundColor Yellow
+    }
+    $updateChoice = Read-Host "Update this installation now? (Y/n)"
+    if (-not [string]::IsNullOrWhiteSpace($updateChoice) -and $updateChoice.ToLower() -eq "n") {
+        Write-Host "Exiting without updating." -ForegroundColor Yellow
+        exit 0
+    }
+}
 if (-not (Test-Path -LiteralPath $installDir)) { New-Item -ItemType Directory -Path $installDir -Force | Out-Null }
 # fetch release info
 $repoOwner = "jirisitera"
 $repoName = "devcraft"
 Write-Host "Fetching latest release information..."
 $releaseUrl = "https://api.github.com/repos/$repoOwner/$repoName/releases/latest"
-try { $release = Invoke-RestMethod -Uri $releaseUrl -Headers @{ "User-Agent" = "installer" } }
-catch {
+try {
+    $release = Invoke-RestMethod -Uri $releaseUrl -Headers @{ "User-Agent" = "installer" }
+} catch {
     Write-Host "Failed to fetch release info from GitHub. Please check your internet connection." -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
     exit 1
@@ -40,8 +62,9 @@ $tempZipPath = Join-Path $env:TEMP "devcraft-$tempId.zip"
 $tempExtractDir = Join-Path $env:TEMP "devcraft-$tempId-extract"
 # download zipped release file
 Write-Host "Downloading release $($release.tag_name)..."
-try { Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZipPath }
-catch {
+try {
+    Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZipPath
+} catch {
     Write-Host "Failed to download the release." -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
     exit 1
@@ -52,7 +75,7 @@ try {
     New-Item -ItemType Directory -Path $tempExtractDir -Force | Out-Null
     Expand-Archive -Path $tempZipPath -DestinationPath $tempExtractDir -Force
     $backupDir = "$env:TEMP\devcraft_backup_$tempId"
-    $playerDataPaths = @("game\saves", "game\options.txt", "game\resourcepacks", "game\screenshots", "game\logs")
+    $playerDataPaths = @("game\saves", "game\resourcepacks", "game\screenshots")
     if (Test-Path -LiteralPath $installDir) {
         Write-Host "Backing up player data..."
         New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
@@ -61,7 +84,9 @@ try {
             if (Test-Path -LiteralPath $src) {
                 $dest = Join-Path $backupDir $p
                 $destParent = Split-Path $dest -Parent
-                if (-not (Test-Path $destParent)) { New-Item -ItemType Directory -Path $destParent -Force | Out-Null }
+                if (-not (Test-Path $destParent)) {
+                    New-Item -ItemType Directory -Path $destParent -Force | Out-Null
+                }
                 Copy-Item -Path $src -Destination $destParent -Recurse -Force
             }
         }
@@ -75,17 +100,19 @@ try {
         Copy-Item -Path "$backupDir\*" -Destination $installDir -Recurse -Force
         Remove-Item -Path $backupDir -Recurse -Force
     }
-}
-catch {
+} catch {
     Write-Host "An error occurred during extraction or installation." -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
     exit 1
-}
-finally {
+} finally {
     # file cleanup
     Write-Host "Cleaning up temporary files..."
-    if (Test-Path $tempZipPath) { Remove-Item -Path $tempZipPath -Force }
-    if (Test-Path $tempExtractDir) { Remove-Item -Path $tempExtractDir -Recurse -Force }
+    if (Test-Path $tempZipPath) {
+        Remove-Item -Path $tempZipPath -Force
+    }
+    if (Test-Path $tempExtractDir) {
+        Remove-Item -Path $tempExtractDir -Recurse -Force
+    }
 }
 # create shortcuts
 $createDesktop = Read-Host "Create Desktop shortcut? (Y/n)"
@@ -98,9 +125,11 @@ $createStartMenu = Read-Host "Create Start Menu shortcut? (Y/n)"
 if ([string]::IsNullOrWhiteSpace($createStartMenu) -or $createStartMenu.ToLower() -eq "y") {
     Write-Host "Creating Start Menu shortcut..."
     $startMenuDir = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Devcraft"
-    if (-not (Test-Path $startMenuDir)) { New-Item -ItemType Directory -Path $startMenuDir -Force | Out-Null }
+    if (-not (Test-Path $startMenuDir)) {
+        New-Item -ItemType Directory -Path $startMenuDir -Force | Out-Null
+    }
     $startMenuLink = "$startMenuDir\Devcraft.lnk"
     New-Shortcut -LinkPath $startMenuLink -TargetPath "$installDir\devcraft.exe" -WorkingDirectory $installDir
 }
-Write-Host "`nInstallation Complete!" -ForegroundColor Green
+Write-Host "Installation Complete!" -ForegroundColor Green
 Write-Host "You can now run Devcraft from your Start Menu or Desktop." -ForegroundColor Green

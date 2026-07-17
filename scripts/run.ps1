@@ -1,6 +1,8 @@
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName WindowsBase
-if ($Host.Name -match "PSRunspace") { $ProgressPreference = "SilentlyContinue" }
+if ($Host.Name -match "PSRunspace") {
+    $ProgressPreference = "SilentlyContinue"
+}
 function Write-LauncherStatus {
     param([Parameter(Mandatory = $true)][string]$Message)
     if ($Host.Name -notmatch "PSRunspace") {
@@ -10,12 +12,20 @@ function Write-LauncherStatus {
 function Write-LauncherError {
     param([Parameter(Mandatory = $true)][string]$Message, [switch]$Exit)
     [System.Windows.MessageBox]::Show($Message, "Launcher Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error) | Out-Null
-    if ($Exit) { exit 1 }
+    if ($Exit) {
+        exit 1
+    }
 }
 function Get-ScriptRoot {
-    if ($PSScriptRoot) { return $PSScriptRoot }
-    if ($PSCommandPath) { return Split-Path -Parent $PSCommandPath }
-    if ($MyInvocation.MyCommand.Path) { return Split-Path -Parent $MyInvocation.MyCommand.Path }
+    if ($PSScriptRoot) {
+        return $PSScriptRoot
+    }
+    if ($PSCommandPath) {
+        return Split-Path -Parent $PSCommandPath
+    }
+    if ($MyInvocation.MyCommand.Path) {
+        return Split-Path -Parent $MyInvocation.MyCommand.Path
+    }
     return [System.AppDomain]::CurrentDomain.BaseDirectory.TrimEnd("\")
 }
 Add-Type -AssemblyName PresentationFramework
@@ -62,6 +72,9 @@ if (-not (Test-Path -LiteralPath $exePath)) {
         }
         New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
         Write-LauncherStatus "Extracting archive..."
+        Add-Type -AssemblyName System.IO.Compression
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+
         $extractRoot = [System.IO.Path]::GetFullPath($extractDir + [System.IO.Path]::DirectorySeparatorChar)
         $zipArchive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
         try {
@@ -220,17 +233,22 @@ $usernameBox = $window.FindName("UsernameBox")
 $okButton = $window.FindName("OkButton")
 $cancelButton = $window.FindName("CancelButton")
 $usernameBox.Add_PreviewTextInput({
-        param($eventSender, $e)
-        if ($e.Text -notmatch "^[A-Za-z0-9_]+$") { $e.Handled = $true }
-    })
+    param($eventSender, $e)
+    if ($e.Text -notmatch "^[A-Za-z0-9_]+$") {
+        $e.Handled = $true
+    }
+})
 [System.Windows.DataObject]::AddPastingHandler($usernameBox, {
-        param($eventSender, $e)
-        if ($e.DataObject.GetDataPresent([System.Windows.DataFormats]::Text)) {
-            $pasteText = $e.DataObject.GetData([System.Windows.DataFormats]::Text)
-            if ($pasteText -notmatch "^[A-Za-z0-9_]+$") { $e.CancelCommand() }
+    param($eventSender, $e)
+    if ($e.DataObject.GetDataPresent([System.Windows.DataFormats]::Text)) {
+        $pasteText = $e.DataObject.GetData([System.Windows.DataFormats]::Text)
+        if ($pasteText -notmatch "^[A-Za-z0-9_]+$") {
+            $e.CancelCommand()
         }
-        else { $e.CancelCommand() }
-    })
+    } else {
+        $e.CancelCommand()
+    }
+})
 function Set-RoundedShellClip {
     param([Parameter(Mandatory = $true)]$Shell, [double]$Radius = 28)
     $rect = New-Object System.Windows.Rect(0, 0, $Shell.ActualWidth, $Shell.ActualHeight)
@@ -238,13 +256,13 @@ function Set-RoundedShellClip {
 }
 $window.Add_SizeChanged({ Set-RoundedShellClip -Shell $rootShell })
 $window.Add_ContentRendered({
-        Set-RoundedShellClip -Shell $rootShell
-        $hwnd = New-Object System.Windows.Interop.WindowInteropHelper($window)
-        [Win32UI]::SetForegroundWindow($hwnd.Handle) | Out-Null
-        [void]$window.Activate()
-        [void]$usernameBox.Focus()
-        [void][System.Windows.Input.Keyboard]::Focus($usernameBox)
-    })
+    Set-RoundedShellClip -Shell $rootShell
+    $hwnd = New-Object System.Windows.Interop.WindowInteropHelper($window)
+    [Win32UI]::SetForegroundWindow($hwnd.Handle) | Out-Null
+    [void]$window.Activate()
+    [void]$usernameBox.Focus()
+    [void][System.Windows.Input.Keyboard]::Focus($usernameBox)
+})
 $userClickedOk = $false
 $okButton.Add_Click({ $script:userClickedOk = $true; $window.Close() })
 $cancelButton.Add_Click({ $script:userClickedOk = $false; $window.Close() })
@@ -261,6 +279,132 @@ if ([string]::IsNullOrWhiteSpace($pmcUser)) {
 }
 if ($pmcUser.Length -lt 3 -or $pmcUser.Length -gt 16 -or $pmcUser -notmatch "^[A-Za-z0-9_]+$") {
     Write-LauncherError -Message "Invalid username. Use 3 to 16 characters (letters, numbers, and underscores only)." -Exit
+}
+function Show-ModDownloadWindow {
+    param([Parameter(Mandatory = $true)][array]$ModsToDownload, [Parameter(Mandatory = $true)][string]$ModsDir)
+    $script:downloadError = $null
+    [xml]$downloadXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Downloading Mods" Width="480" Height="280"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="Transparent" Foreground="#1C1C1C" WindowStyle="None"
+        AllowsTransparency="True" Opacity="1" UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Topmost="True" ShowInTaskbar="True">
+    <Window.Resources>
+        <Style x:Key="ProgressTrack" TargetType="ProgressBar">
+            <Setter Property="Foreground" Value="#0F4C81"/>
+            <Setter Property="Background" Value="#C2D3E3"/>
+            <Setter Property="BorderBrush" Value="#A2B7CC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Border x:Name="PART_Track" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="11">
+                                <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="9" HorizontalAlignment="Left" Margin="1"/>
+                            </Border>
+                            <TextBlock Text="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, StringFormat={}{0:0}%}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="13" FontWeight="Bold" FontFamily="Consolas">
+                                <TextBlock.Effect>
+                                    <DropShadowEffect ShadowDepth="1" BlurRadius="2" Opacity="0.8" Color="Black"/>
+                                </TextBlock.Effect>
+                            </TextBlock>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Border x:Name="DownloadRootShell" CornerRadius="28" ClipToBounds="True" Background="Transparent">
+        <Grid>
+            <Grid.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#FFBFD3E6" Offset="0"/>
+                    <GradientStop Color="#FFD8E7F4" Offset="0.55"/>
+                    <GradientStop Color="#FFC6DCEB" Offset="1"/>
+                </LinearGradientBrush>
+            </Grid.Background>
+            <Ellipse Width="220" Height="220" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-60,-85,0,0" Fill="#4DA6E3FF" IsHitTestVisible="False">
+                <Ellipse.Effect><BlurEffect Radius="36"/></Ellipse.Effect>
+            </Ellipse>
+            <Ellipse Width="200" Height="200" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-45,-70" Fill="#4DB8FFD2" IsHitTestVisible="False">
+                <Ellipse.Effect><BlurEffect Radius="34"/></Ellipse.Effect>
+            </Ellipse>
+            <Border HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="18" CornerRadius="18" BorderThickness="1" BorderBrush="#AAFFFFFF" Background="#80FFFFFF" Padding="16">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.18" Color="#334155"/>
+                </Border.Effect>
+                <Grid>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="12,0,12,0">
+                        <TextBlock Text="Downloading Mods" FontSize="30" FontWeight="SemiBold" Foreground="#0F4C81" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="StatusText" Text="Preparing downloads..." FontSize="14" Foreground="#3F4A59" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                        <ProgressBar x:Name="DownloadProgress" Style="{StaticResource ProgressTrack}" Minimum="0" Maximum="100" Value="0" Margin="0,0,0,12"/>
+                        <TextBlock x:Name="DetailText" Text="Please wait while the launcher downloads the selected mod files." FontSize="14" Foreground="#3F4A59" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>
+"@
+    $downloadReader = New-Object System.Xml.XmlNodeReader $downloadXaml
+    $downloadWindow = [Windows.Markup.XamlReader]::Load($downloadReader)
+    $downloadRootShell = $downloadWindow.FindName("DownloadRootShell")
+    $statusText = $downloadWindow.FindName("StatusText")
+    $downloadProgress = $downloadWindow.FindName("DownloadProgress")
+    $detailText = $downloadWindow.FindName("DetailText")
+    $downloadWindow.Add_SizeChanged({ Set-RoundedShellClip -Shell $downloadRootShell })
+    $downloadWindow.Add_ContentRendered({ Set-RoundedShellClip -Shell $downloadRootShell })
+    $state = @{
+        Index = 0
+        Mods = $ModsToDownload
+        ModsDir = $ModsDir
+        Total = $ModsToDownload.Count
+    }
+    $wc = New-Object System.Net.WebClient
+    $wc.add_DownloadProgressChanged({
+        param($sender, $e)
+        if ($state.Index -lt $state.Total) {
+            $mod = $state.Mods[$state.Index]
+            $statusText.Text = "Downloading mod $(($state.Index + 1)) of $($state.Total)"
+            $detailText.Text = $mod.filename
+            $downloadProgress.Value = [math]::Max(0, [math]::Min(100, $e.ProgressPercentage))
+        }
+    })
+    $wc.add_DownloadFileCompleted({
+        param($sender, $e)
+        if ($e.Error) {
+            $script:downloadError = $e.Error
+            $downloadWindow.Close()
+            return
+        }
+        $state.Index++
+        if ($state.Index -lt $state.Total) {
+            $nextMod = $state.Mods[$state.Index]
+            $modDestPath = Join-Path $state.ModsDir $nextMod.filename
+            $statusText.Text = "Preparing download mod $(($state.Index + 1)) of $($state.Total)"
+            $detailText.Text = $nextMod.filename
+            $downloadProgress.Value = 0
+            $wc.DownloadFileAsync((New-Object Uri($nextMod.url)), $modDestPath)
+        } else {
+            $downloadWindow.Close()
+        }
+    })
+    $downloadWindow.Add_Loaded({
+        if ($state.Total -gt 0) {
+            $firstMod = $state.Mods[$state.Index]
+            $modDestPath = Join-Path $state.ModsDir $firstMod.filename
+            $statusText.Text = "Preparing download mod $(($state.Index + 1)) of $($state.Total)"
+            $detailText.Text = $firstMod.filename
+            $downloadProgress.Value = 0
+            $wc.DownloadFileAsync((New-Object Uri($firstMod.url)), $modDestPath)
+        } else {
+            $downloadWindow.Close()
+        }
+    })
+    $downloadWindow.ShowDialog() | Out-Null
+    return $script:downloadError
 }
 $githubRawBase = 'https://raw.githubusercontent.com/jirisitera/devcraft/main'
 $filesToFetch = @{
@@ -294,6 +438,7 @@ if (Test-Path -LiteralPath $modsConfigPath) {
             if (-not (Test-Path -LiteralPath $modsDir)) {
                 New-Item -ItemType Directory -Path $modsDir -Force | Out-Null
             }
+            $modsToDownload = @()
             foreach ($mod in $modsConfig.mods) {
                 if ($null -ne $mod.filename -and $null -ne $mod.url) {
                     $modDestPath = Join-Path $modsDir $mod.filename
@@ -322,8 +467,7 @@ $pmcArgs = @("start", "neoforge:1.21.1", "--mc-dir", "$(Join-Path $rootDir 'game
 # run in hidden mode if launching from and executable
 if ($Host.Name -match "PSRunspace") {
     $process = Start-Process -FilePath $exePath -ArgumentList $pmcArgs -WindowStyle Hidden -Wait -PassThru
-}
-else {
+} else {
     $process = Start-Process -FilePath $exePath -ArgumentList $pmcArgs -NoNewWindow -Wait -PassThru
 }
 exit $process.ExitCode

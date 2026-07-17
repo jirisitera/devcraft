@@ -3,11 +3,11 @@
 *.exe
 *.jar
 *.zip
+*.class
 # temporary folders
 .extracted/
 # minecraft data folders
 config/
-defaultconfigs/
 downloads/
 saves/
 logs/
