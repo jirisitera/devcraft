@@ -3,7 +3,9 @@ Add-Type -AssemblyName WindowsBase
 if ($Host.Name -match "PSRunspace") { $ProgressPreference = "SilentlyContinue" }
 function Write-LauncherStatus {
     param([Parameter(Mandatory = $true)][string]$Message)
-    if ($Host.Name -notmatch "PSRunspace") { Write-Host "[Launcher] $Message" -ForegroundColor Cyan }
+    if ($Host.Name -notmatch "PSRunspace") {
+        Write-Host "[Launcher] $Message" -ForegroundColor Cyan
+    }
 }
 function Write-LauncherError {
     param([Parameter(Mandatory = $true)][string]$Message, [switch]$Exit)
@@ -32,56 +34,64 @@ public class Win32UI {
 $repo = "theorzr/portablemc"
 $url = "https://api.github.com/repos/$repo/releases/latest"
 $rootDir = Get-ScriptRoot
-if ((Split-Path -Leaf $rootDir).ToLower() -eq "scripts") { $rootDir = Split-Path -Parent $rootDir }
+if ((Split-Path -Leaf $rootDir).ToLower() -eq "scripts") {
+    $rootDir = Split-Path -Parent $rootDir
+}
 $downloadDir = Join-Path $rootDir "client"
 $zipPath = Join-Path $downloadDir "pmc-latest.zip"
 $extractDir = Join-Path $downloadDir ".extracted"
 $exePath = Join-Path $extractDir "portablemc.exe"
-if (-not (Test-Path -LiteralPath $downloadDir)) { New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null }
+if (-not (Test-Path -LiteralPath $downloadDir)) {
+    New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null
+}
 if (-not (Test-Path -LiteralPath $exePath)) {
     try {
-        Write-LauncherStatus "Resolving latest PortableMC Windows build..."
-        $release = Invoke-RestMethod -Uri $url -Headers @{ "User-Agent" = "pmc-bootstrap" }
-        $asset = $release.assets | Where-Object { $_.name -like "portablemc-*-windows-x86_64-msvc.zip" } | Select-Object -First 1
-        if (-not $asset) { Write-LauncherError -Message "No Windows x86_64 asset found in latest release." -Exit }
-        $assetUrl = $asset.browser_download_url
-        Write-LauncherStatus "Downloading from: $assetUrl"
-        Invoke-WebRequest -Uri $assetUrl -OutFile $zipPath
-        if (Test-Path -LiteralPath $extractDir) { Remove-Item -LiteralPath $extractDir -Recurse -Force }
-        New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
-        Write-LauncherStatus "Extracting archive..."
         Add-Type -AssemblyName System.IO.Compression
         Add-Type -AssemblyName System.IO.Compression.FileSystem
-
+        if (-not (Test-Path -LiteralPath $zipPath)) {
+            Write-LauncherStatus "Resolving latest PortableMC Windows build..."
+            $release = Invoke-RestMethod -Uri $url -Headers @{ "User-Agent" = "pmc-bootstrap" }
+            $asset = $release.assets | Where-Object { $_.name -like "portablemc-*-windows-x86_64-msvc.zip" } | Select-Object -First 1
+            if (-not $asset) { Write-LauncherError -Message "No Windows x86_64 asset found in latest release." -Exit }
+            $assetUrl = $asset.browser_download_url
+            Write-LauncherStatus "Downloading from: $assetUrl"
+            Invoke-WebRequest -Uri $assetUrl -OutFile $zipPath
+        }
+        if (Test-Path -LiteralPath $extractDir) {
+            Remove-Item -LiteralPath $extractDir -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
+        Write-LauncherStatus "Extracting archive..."
         $extractRoot = [System.IO.Path]::GetFullPath($extractDir + [System.IO.Path]::DirectorySeparatorChar)
         $zipArchive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
         try {
             foreach ($entry in $zipArchive.Entries) {
-                if ([string]::IsNullOrWhiteSpace($entry.FullName)) { continue }
-
+                if ([string]::IsNullOrWhiteSpace($entry.FullName)) {
+                    continue
+                }
                 $destinationPath = [System.IO.Path]::GetFullPath((Join-Path $extractDir $entry.FullName))
                 if (-not $destinationPath.StartsWith($extractRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
                     throw "Archive entry has invalid path: $($entry.FullName)"
                 }
-
                 if ($entry.Name -eq "") {
                     New-Item -ItemType Directory -Path $destinationPath -Force | Out-Null
                     continue
                 }
-
                 $destinationDir = Split-Path -Parent $destinationPath
                 if (-not (Test-Path -LiteralPath $destinationDir)) {
                     New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null
                 }
-
                 [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destinationPath, $true)
             }
+        } finally {
+            if ($null -ne $zipArchive) {
+                $zipArchive.Dispose()
+            }
         }
-        finally {
-            if ($null -ne $zipArchive) { $zipArchive.Dispose() }
+        if (-not (Test-Path -LiteralPath $exePath)) {
+            Write-LauncherError -Message "portablemc.exe was not found after extraction." -Exit
         }
-        if (-not (Test-Path -LiteralPath $exePath)) { Write-LauncherError -Message "portablemc.exe was not found after extraction." -Exit }
-        Write-LauncherStatus "Download successful!"
+        Write-LauncherStatus "PortableMC is ready."
     }
     catch { Write-LauncherError -Message "Failed to setup PortableMC: $($_.Exception.Message)" -Exit }
 }
@@ -261,12 +271,16 @@ $filesToFetch = @{
 foreach ($rel in $filesToFetch.Keys) {
     $url = "$githubRawBase/$rel"
     $dest = $filesToFetch[$rel]
+    if (Test-Path -LiteralPath $dest) {
+        Write-LauncherStatus "Using local $rel"
+        continue
+    }
     try {
         Write-LauncherStatus "Fetching $rel from $url"
         Invoke-WebRequest -Uri $url -UseBasicParsing -OutFile $dest -ErrorAction Stop
         Write-LauncherStatus "Updated $rel"
     } catch {
-        Write-LauncherStatus "Could not update ${rel}: $($_.Exception.Message)"
+        Write-LauncherStatus "Could not fetch ${rel}; continuing with local files only: $($_.Exception.Message)"
     }
 }
 # download required mods
@@ -283,21 +297,23 @@ if (Test-Path -LiteralPath $modsConfigPath) {
             foreach ($mod in $modsConfig.mods) {
                 if ($null -ne $mod.filename -and $null -ne $mod.url) {
                     $modDestPath = Join-Path $modsDir $mod.filename
-                    if (-not (Test-Path -LiteralPath $modDestPath)) {
-                        Write-LauncherStatus "Downloading mod: $($mod.filename)..."
-                        try {
-                            Invoke-WebRequest -Uri $mod.url -OutFile $modDestPath -UseBasicParsing
-                        }
-                        catch {
-                            Write-LauncherError -Message "Failed to download mod $($mod.filename)."
-                        }
+                    if (Test-Path -LiteralPath $modDestPath) {
+                        Write-LauncherStatus "Using local mod: $($mod.filename)"
+                        continue
+                    }
+                    Write-LauncherStatus "Downloading mod: $($mod.filename)..."
+                    try {
+                        Invoke-WebRequest -Uri $mod.url -OutFile $modDestPath -UseBasicParsing
+                    }
+                    catch {
+                        Write-LauncherStatus "Could not download mod $($mod.filename); continuing with local files only: $($_.Exception.Message)"
                     }
                 }
             }
         }
     }
     catch {
-        Write-LauncherError -Message "Failed to parse mods.json configuration."
+        Write-LauncherStatus "Failed to parse mods.json configuration; continuing with local files only: $($_.Exception.Message)"
     }
 }
 # boot up game
