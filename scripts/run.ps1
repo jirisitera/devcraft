@@ -112,7 +112,7 @@ if (-not (Test-Path -LiteralPath $exePath)) {
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
-        Title="Minecraft Launcher" Width="480" Height="320" 
+        Title="Minecraft Launcher" Width="500" Height="450" 
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize" 
         Background="Transparent" Foreground="#1C1C1C" WindowStyle="None" 
         AllowsTransparency="True" Opacity="1" UseLayoutRounding="True" SnapsToDevicePixels="True"
@@ -190,6 +190,34 @@ if (-not (Test-Path -LiteralPath $exePath)) {
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="ModernCheckBox" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#3F4A59"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal">
+                            <Border x:Name="border" Width="20" Height="20" Background="White" BorderBrush="#D1D1D1" BorderThickness="1" CornerRadius="4" VerticalAlignment="Center">
+                                <Path x:Name="checkMark" Stretch="Uniform" Fill="#0078D4" Data="M 3 10 L 8 15 L 17 5 L 15 3 L 8 11 L 5 8 Z" Margin="3" Opacity="0"/>
+                            </Border>
+                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#0078D4"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="checkMark" Property="Opacity" Value="1"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#0078D4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     <Border x:Name="RootShell" CornerRadius="28" ClipToBounds="True" Background="Transparent">
         <Grid>
@@ -213,8 +241,11 @@ if (-not (Test-Path -LiteralPath $exePath)) {
                 <Grid>
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="12,0,12,0">
                         <TextBlock Text="Minecraft Launcher" FontSize="30" FontWeight="SemiBold" Foreground="#0F4C81" Margin="0,0,0,8"/>
-                        <TextBlock Text="Please enter your username:" FontSize="14" FontWeight="Normal" Margin="0,0,0,20" Foreground="#3F4A59"/>
-                        <TextBox x:Name="UsernameBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,18" MaxLength="16"/>
+                        <TextBlock Text="Please enter your username:" FontSize="14" FontWeight="Normal" Margin="0,0,0,8" Foreground="#3F4A59"/>
+                        <TextBox x:Name="UsernameBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,16" MaxLength="16"/>
+                        <TextBlock Text="Game Version (e.g. release):" FontSize="14" FontWeight="Normal" Margin="0,0,0,8" Foreground="#3F4A59"/>
+                        <TextBox x:Name="VersionBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,16" Text="release"/>
+                        <CheckBox x:Name="UseDefaultsBox" Content="Fetch remote config files [SPACE]" Style="{StaticResource ModernCheckBox}"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button x:Name="OkButton" Content="Launch" Width="118" Height="40" Style="{StaticResource ModernButton}" Margin="0,0,12,0"/>
                             <Button x:Name="CancelButton" Content="Cancel" Width="118" Height="40" Style="{StaticResource SecondaryButton}" Margin="0"/>
@@ -230,8 +261,36 @@ $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [Windows.Markup.XamlReader]::Load($reader)
 $rootShell = $window.FindName("RootShell")
 $usernameBox = $window.FindName("UsernameBox")
+$versionBox = $window.FindName("VersionBox")
+$versionFilePath = Join-Path $rootDir "game\version.txt"
+if (Test-Path -LiteralPath $versionFilePath) {
+    $savedVersion = Get-Content -LiteralPath $versionFilePath -Raw
+    if (-not [string]::IsNullOrWhiteSpace($savedVersion)) {
+        $versionBox.Text = $savedVersion.Trim()
+    }
+}
+$userFilePath = Join-Path $rootDir "game\username.txt"
+if (Test-Path -LiteralPath $userFilePath) {
+    $savedUser = Get-Content -LiteralPath $userFilePath -Raw
+    if (-not [string]::IsNullOrWhiteSpace($savedUser)) {
+        $usernameBox.Text = $savedUser.Trim()
+    }
+}
+$useDefaultsBox = $window.FindName("UseDefaultsBox")
 $okButton = $window.FindName("OkButton")
 $cancelButton = $window.FindName("CancelButton")
+$window.Add_PreviewKeyDown({
+    if ($_.Key -eq "Space") {
+        if (-not $useDefaultsBox.IsFocused) {
+            $useDefaultsBox.IsChecked = -not $useDefaultsBox.IsChecked
+            $_.Handled = $true
+        }
+    } elseif ($_.Key -eq "Return") {
+        $script:userClickedOk = $true
+        $window.Close()
+        $_.Handled = $true
+    }
+})
 $usernameBox.Add_PreviewTextInput({
     param($eventSender, $e)
     if ($e.Text -notmatch "^[A-Za-z0-9_]+$") {
@@ -262,21 +321,31 @@ $window.Add_ContentRendered({
     [void]$window.Activate()
     [void]$usernameBox.Focus()
     [void][System.Windows.Input.Keyboard]::Focus($usernameBox)
+    $usernameBox.CaretIndex = $usernameBox.Text.Length
 })
 $userClickedOk = $false
 $okButton.Add_Click({ $script:userClickedOk = $true; $window.Close() })
 $cancelButton.Add_Click({ $script:userClickedOk = $false; $window.Close() })
-$usernameBox.Add_KeyDown({ if ($_.Key -eq "Return") { $script:userClickedOk = $true; $window.Close() } })
 $window.ShowDialog() | Out-Null
 if (-not $userClickedOk) {
     Write-LauncherStatus "Name selection cancelled. Exiting launch sequence."
     exit 0
 }
 $pmcUser = $usernameBox.Text
+$pmcVersion = $versionBox.Text
+$useDefaults = $useDefaultsBox.IsChecked -eq $true
+if ([string]::IsNullOrWhiteSpace($pmcVersion)) {
+    $pmcVersion = "release"
+}
+if (-not (Test-Path -LiteralPath (Split-Path -Parent $versionFilePath))) {
+    New-Item -ItemType Directory -Path (Split-Path -Parent $versionFilePath) -Force | Out-Null
+}
+Set-Content -LiteralPath $versionFilePath -Value $pmcVersion -Force
 if ([string]::IsNullOrWhiteSpace($pmcUser)) {
     Write-LauncherStatus "No username specified, using randomly generated name instead..."
     $pmcUser = "player$((Get-Random -Minimum 100 -Maximum 999))"
 }
+Set-Content -LiteralPath $userFilePath -Value $pmcUser -Force
 if ($pmcUser.Length -lt 3 -or $pmcUser.Length -gt 16 -or $pmcUser -notmatch "^[A-Za-z0-9_]+$") {
     Write-LauncherError -Message "Invalid username. Use 3 to 16 characters (letters, numbers, and underscores only)." -Exit
 }
@@ -411,20 +480,35 @@ $filesToFetch = @{
     'game/servers.dat' = Join-Path $rootDir 'game\servers.dat'
     'game/options.txt' = Join-Path $rootDir 'game\options.txt'
     'game/mods.json' = Join-Path $rootDir 'game\mods.json'
+    'game/version.txt' = Join-Path $rootDir 'game\version.txt'
 }
 foreach ($rel in $filesToFetch.Keys) {
     $url = "$githubRawBase/$rel"
     $dest = $filesToFetch[$rel]
-    if (Test-Path -LiteralPath $dest) {
-        Write-LauncherStatus "Using local $rel"
-        continue
+    if ($useDefaults) {
+        if (Test-Path -LiteralPath $dest) {
+            Remove-Item -LiteralPath $dest -Force
+        }
+        try {
+            Write-LauncherStatus "Fetching $rel from $url"
+            Invoke-WebRequest -Uri $url -UseBasicParsing -OutFile $dest -ErrorAction Stop
+            Write-LauncherStatus "Updated $rel"
+        } catch {
+            Write-LauncherStatus "Could not fetch ${rel}: $($_.Exception.Message)"
+        }
+    } else {
+        if (Test-Path -LiteralPath $dest) {
+            Write-LauncherStatus "Using local $rel"
+        } else {
+            Write-LauncherStatus "Skipping download of $rel (Restore defaults unchecked)"
+        }
     }
-    try {
-        Write-LauncherStatus "Fetching $rel from $url"
-        Invoke-WebRequest -Uri $url -UseBasicParsing -OutFile $dest -ErrorAction Stop
-        Write-LauncherStatus "Updated $rel"
-    } catch {
-        Write-LauncherStatus "Could not fetch ${rel}; continuing with local files only: $($_.Exception.Message)"
+}
+if ($useDefaults -and (Test-Path -LiteralPath $versionFilePath)) {
+    $fetchedVersion = Get-Content -LiteralPath $versionFilePath -Raw
+    if (-not [string]::IsNullOrWhiteSpace($fetchedVersion)) {
+        $pmcVersion = $fetchedVersion.Trim()
+        Write-LauncherStatus "Version overridden to fetched default: $pmcVersion"
     }
 }
 # download required mods
@@ -463,7 +547,7 @@ if (Test-Path -LiteralPath $modsConfigPath) {
 }
 # boot up game
 Write-LauncherStatus "Booting up Minecraft as user '$pmcUser'..."
-$pmcArgs = @("start", "neoforge:1.21.1", "--mc-dir", "$(Join-Path $rootDir 'game')", "--username", "$pmcUser")
+$pmcArgs = @("start", $pmcVersion, "--mc-dir", "$(Join-Path $rootDir 'game')", "--username", "$pmcUser")
 # run in hidden mode if launching from and executable
 if ($Host.Name -match "PSRunspace") {
     $process = Start-Process -FilePath $exePath -ArgumentList $pmcArgs -WindowStyle Hidden -Wait -PassThru
