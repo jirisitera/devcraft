@@ -12,6 +12,8 @@ If you want to adapt this project to your needs, simply clone it with Git.
 
 However, you can also run the following command to install it automatically:
 
+### Windows
+
 ```powershell
 irm https://raw.githubusercontent.com/jirisitera/devcraft/main/scripts/install.ps1 | iex
 ```
@@ -20,6 +22,20 @@ Or you can use a shorter command using my domain link:
 
 ```powershell
 irm https://dev.japicraft.com | iex
+```
+
+### Linux / macOS
+
+Run directly via `curl`:
+
+```sh
+sh <(curl -fsSL https://raw.githubusercontent.com/jirisitera/devcraft/main/scripts/run.sh)
+```
+
+Or pass any PortableMC arguments:
+
+```sh
+sh <(curl -fsSL https://raw.githubusercontent.com/jirisitera/devcraft/main/scripts/run.sh) start 1.20.4
 ```
 
 ## Usage
